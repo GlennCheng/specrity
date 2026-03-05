@@ -136,51 +136,89 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
 
 ### Step 4: 定稿與發布
 
-PM 確認 PRD 後，執行以下操作。
+PM 確認 PRD 後，根據 `spec_mode` 執行不同流程。
 
-#### 4-A: Spec Repo — 搬移到 published（在 main 上）
+#### 4-A: 搬移到 published
 
-1. 在 `$SPEC_ROOT`（submodule 或 local）中：
+不論 `spec_mode`，都執行搬移：
+
+```
+mv $SPEC_ROOT/drafts/<TICKET_ID>/ → $SPEC_ROOT/published/<TICKET_ID>/
+```
+
+更新 `published/<TICKET_ID>/state.yml`：`phase: published`
+
+#### 4-B: 發布（依 spec_mode 分流）
+
+##### 若 `spec_mode: submodule`
+
+Spec repo 獨立於主 repo，PM **不碰主 repo**。
+
+1. **在 spec repo 內**（`$SPEC_ROOT` 即 submodule 目錄）：
+   - `git add .`
+   - `git commit -m "feat: publish PRD for <TICKET_ID>"`
+   - `git push origin main`
+   
+   > ⚠️ Spec repo 永遠在 main 上操作，不切 branch。
+
+2. **更新 Jira**：
+   - Comment：「PRD 已發布，請 Review」
+   - Transition：狀態 → "Spec Review"（若可用）
+
+3. **提示 Engineer**：
    ```
-   mv drafts/<TICKET_ID>/ → published/<TICKET_ID>/
+   ✅ PRD 已發布到 spec repo。
+   工程師可執行 /dev.plan HTGO2-123 開始規劃。
    ```
-2. 更新 `published/<TICKET_ID>/state.yml`：`phase: published`
-3. `git add . && git commit -m "feat: publish PRD for <TICKET_ID>"`
-4. `git push origin main`（spec repo 的 main 可以直接 push）
 
-> ⚠️ Spec repo 永遠在 main branch 上操作，不切 branch。
-> 所有 PRD 都用目錄區分（`drafts/`、`published/`），不用 branch 區分。
+4. **完成**。不建立主 repo branch，由 Engineer 在 `/dev.plan` 時自行建立。
 
-#### 4-B: 主 Repo — 建立 Feature Branch（含 Branch 保護）
+##### 若 `spec_mode: local`
+
+PRD 就在主 repo 裡，PM **必須建 feature branch** 才能 commit。
 
 1. **🛡️ Branch 保護檢查（雙重確認）**
    - 讀取 `.speckit-jira.yml` 中的 `protected_branches` 清單
    - 預計建立的 branch 名稱：`feature/<TICKET_ID>-<slugified-title>`
-   - 確認目標 branch **不在**保護清單中
-   - 若命中保護清單 → **立即中止，顯示警告：**
+   - **檢查 1**：目標 branch 不在 `protected_branches` 中
+     - 若命中 → **立即中止**：
+       ```
+       ❌ Cannot push to protected branch!
+       Protected branches: main, master, develop, integration, staging, production, release/*
+       Aborting.
+       ```
+   - **檢查 2**：branch 名稱包含 `<TICKET_ID>`
+     - 若不包含 → **中止**：
+       ```
+       ❌ Branch name must contain the ticket ID: <TICKET_ID>
+       Aborting.
+       ```
+   - **檢查 3**：顯示確認訊息
      ```
-     ❌ 嚴禁推送到受保護的 branch！
-     以下 branch 受保護：main, master, develop, integration, staging, production, release/*
-     請確認 branch 名稱正確。
-     ```
-   - 確認 branch 名稱**包含** `<TICKET_ID>` → 若不包含 → 中止
-   - 顯示確認訊息：
-     ```
-     即將在主 repo 建立並推送到 branch: feature/HTGO2-123-login-feature
-     確認？(y/N)
+     Will create and push branch: feature/HTGO2-123-login-feature
+     Confirm? (y/N)
      ```
    - 使用者確認後才繼續
 
 2. **建立 Branch 並推送**
    - `git checkout -b feature/<TICKET_ID>-<slugified-title>`
-   - 更新 submodule pointer：`git add specs && git commit`
+   - `git add specs/`
+   - `git commit -m "feat: publish PRD for <TICKET_ID>"`
    - `git push -u origin feature/<TICKET_ID>-<slugified-title>`
 
-3. **更新 Jira**
-   - 加上 comment：PRD 連結 + Branch 名稱
-   - Transition 狀態為 "Spec Review"（若可用）
+3. **更新 Jira**：
+   - Comment：PRD 發布 + Branch 名稱
+   - Transition：狀態 → "Spec Review"（若可用）
 
-4. 告知使用者結果
+4. **完成**。
+
+##### 若 `spec_mode: external`
+
+與 submodule 類似，PRD 在外部 repo。
+
+1. 在外部 repo 中 commit + push
+2. 更新 Jira
+3. 完成。不建立主 repo branch。
 
 ---
 
@@ -189,15 +227,15 @@ PM 確認 PRD 後，執行以下操作。
 若 Atlassian MCP Server 連線失敗或 tool 呼叫失敗：
 
 ```
-⚠️ 無法連接 Jira MCP Server。
-請手動提供以下資訊：
+⚠️ Unable to connect to Jira MCP Server.
+Please provide the following manually:
 
-1. Ticket 標題：
-2. Ticket 描述：
-3. 接受標準（Acceptance Criteria）：
-4. 任何附加資訊：
+1. Ticket title:
+2. Ticket description:
+3. Acceptance Criteria:
+4. Additional info:
 
-（貼上後按 Enter 繼續）
+(Paste and press Enter to continue)
 ```
 
 後續步驟照常進行，只是跳過 Jira 狀態更新和 comment 操作。
@@ -205,9 +243,13 @@ PM 確認 PRD 後，執行以下操作。
 ---
 
 ## 預期產出
-- `drafts/<TICKET_ID>/state.yml` — 狀態追蹤
-- `drafts/<TICKET_ID>/jira-snapshot.md` — Jira 需求快照
-- `drafts/<TICKET_ID>/clarify-log.md` — Clarify 問答記錄
-- `drafts/<TICKET_ID>/prd.md` — PRD 完整文件
-- Feature branch（定稿後）
+
+### 所有模式
+- `published/<TICKET_ID>/state.yml` — 狀態追蹤
+- `published/<TICKET_ID>/jira-snapshot.md` — Jira 需求快照
+- `published/<TICKET_ID>/clarify-log.md` — Clarify 問答記錄
+- `published/<TICKET_ID>/prd.md` — PRD 完整文件
 - Jira 更新（comment + 狀態 transition）
+
+### 僅 local 模式
+- 主 repo feature branch（`feature/<TICKET_ID>-<title>`）
