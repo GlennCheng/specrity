@@ -4,6 +4,14 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
 
 # /pm.specify <TICKET_ID>
 
+## 設計理念
+
+> **此流程專為非技術背景的 PM 設計。**
+> 核心目的是讓 PM 專注於**任務的需求與目的**，而不是去干涉 RD 的邏輯架構與技術選用。
+> PM 該做的事：釐清「使用者要什麼」、「為什麼要做」、「怎樣算成功」。
+> PM 不該碰的事：資料庫怎麼設計、用什麼框架、API 怎麼切、前後端怎麼分。
+> **技術決策完全留給 `/dev.plan` 階段由工程師處理。**
+
 ## 概述
 此 workflow 協助 PM 從 Jira Ticket 建立產品需求文件（PRD）。基於原生 spec-kit 的 specify + clarify 整合設計。採用 **Draft-First** 狀態機：PRD 草稿先存在 `drafts/` 目錄，定稿後搬移到 `published/`。支援跨對話 session 無縫接續。
 
