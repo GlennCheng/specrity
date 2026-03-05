@@ -597,8 +597,9 @@ STAMPEOF
         echo ".speckit-jira-installed" >> "$gitignore"
     fi
 
-    # Step 6: Copy helper scripts
-    log_header "Step 4: Deploy Helper Scripts"
+    # Step 6: Copy helper scripts and templates
+    log_header "Step 4: Deploy Helper Scripts & Templates"
+    
     local scripts_target="${PROJECT_ROOT}/scripts"
     if [[ ! -d "$scripts_target" ]]; then
         mkdir -p "$scripts_target"
@@ -607,6 +608,40 @@ STAMPEOF
         cp "${SCRIPT_DIR}/scripts/create-jira-feature.sh" "${scripts_target}/create-jira-feature.sh"
         chmod +x "${scripts_target}/create-jira-feature.sh"
         log_ok "Deployed create-jira-feature.sh"
+    fi
+
+    # Determine SPEC_ROOT
+    local config_file="${PROJECT_ROOT}/.speckit-jira.yml"
+    local parsed_mode="local"
+    local parsed_path="specs/"
+    if [[ -f "$config_file" ]]; then
+        local read_mode
+        read_mode=$(grep '^spec_mode:' "$config_file" | awk '{print $2}' || true)
+        [[ -n "$read_mode" ]] && parsed_mode="$read_mode"
+        
+        local read_path
+        read_path=$(grep '^spec_path:' "$config_file" | awk '{print $2}' || true)
+        [[ -n "$read_path" ]] && parsed_path="$read_path"
+    fi
+
+    local spec_root="${PROJECT_ROOT}/${parsed_path}"
+    if [[ "$parsed_mode" == "external" ]]; then
+        local env_file="${PROJECT_ROOT}/.env"
+        if [[ -f "$env_file" ]]; then
+            local read_ext
+            read_ext=$(grep '^SPEC_REPO_PATH=' "$env_file" | cut -d'=' -f2 || true)
+            [[ -n "$read_ext" ]] && spec_root="$read_ext"
+        fi
+    fi
+
+    # Clean up trailing slash
+    spec_root="${spec_root%/}"
+
+    # Copy templates
+    if [[ -d "${SCRIPT_DIR}/templates" ]]; then
+        mkdir -p "${spec_root}/templates"
+        cp -R "${SCRIPT_DIR}/templates/"* "${spec_root}/templates/"
+        log_ok "Deployed templates to ${spec_root}/templates/"
     fi
 
     # Step 7: Verify
