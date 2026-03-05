@@ -184,13 +184,22 @@ select_agents_interactive() {
 
 # ─── Project Configuration Setup ───
 setup_project_config() {
-    local config_file="${PROJECT_ROOT}/.specrity.yml"
+    local target_dir="${PROJECT_ROOT}/.specrity"
+    mkdir -p "$target_dir"
+
+    # Migrate from old root location if present
+    if [[ -f "${PROJECT_ROOT}/.specrity.yml" ]] && [[ ! -f "${target_dir}/.specrity.yml" ]]; then
+        mv "${PROJECT_ROOT}/.specrity.yml" "${target_dir}/.specrity.yml"
+        log_info "Migrated .specrity.yml to .specrity/ directory"
+    fi
+
+    local config_file="${target_dir}/.specrity.yml"
 
     log_header "Project Configuration"
 
     # Check if config already exists
     if [[ -f "$config_file" ]]; then
-        echo -e "  Found existing ${CYAN}.specrity.yml${NC}:"
+        echo -e "  Found existing ${CYAN}.specrity/.specrity.yml${NC}:"
         echo ""
         sed 's/^/    /' "$config_file" | grep -v '^    #' | grep -v '^$' | head -10
         echo ""
@@ -205,7 +214,7 @@ setup_project_config() {
     echo -e "  ${BOLD}Where should PRD documents be stored?${NC}"
     echo ""
     echo -e "  ${CYAN}1${NC}) ${BOLD}local${NC}      — In the project directory (simplest, default)"
-    echo -e "                 PRDs saved to ${DIM}./specs/drafts/...${NC}"
+    echo -e "                 PRDs saved to ${DIM}./specrity/drafts/...${NC}"
     echo ""
     echo -e "  ${CYAN}2${NC}) ${BOLD}submodule${NC}  — In a git submodule (recommended for teams)"
     echo -e "                 Separate repo, auto-synced via git submodule"
@@ -216,13 +225,13 @@ setup_project_config() {
     read -rp "Choose [1/2/3] (default: 1): " mode_choice
 
     local spec_mode="local"
-    local spec_path="specs/"
+    local spec_path="specrity/"
 
     case "${mode_choice}" in
         2)
             spec_mode="submodule"
-            read -rp "Submodule relative path (default: specs/): " sub_path
-            spec_path="${sub_path:-specs/}"
+            read -rp "Submodule relative path (default: specrity/): " sub_path
+            spec_path="${sub_path:-specrity/}"
             # Check if submodule exists
             # Note: .git in submodule can be a FILE (not dir), containing "gitdir: ..."
             local spec_path_clean="${spec_path%/}"  # strip trailing slash
@@ -600,7 +609,10 @@ STAMPEOF
     # Step 6: Copy helper scripts and templates
     log_header "Step 4: Deploy Helper Scripts & Templates"
     
-    local scripts_target="${PROJECT_ROOT}/scripts"
+    local target_dir="${PROJECT_ROOT}/.specrity"
+    mkdir -p "$target_dir"
+
+    local scripts_target="${target_dir}/scripts"
     if [[ ! -d "$scripts_target" ]]; then
         mkdir -p "$scripts_target"
     fi
@@ -610,38 +622,11 @@ STAMPEOF
         log_ok "Deployed create-jira-feature.sh"
     fi
 
-    # Determine SPEC_ROOT
-    local config_file="${PROJECT_ROOT}/.specrity.yml"
-    local parsed_mode="local"
-    local parsed_path="specs/"
-    if [[ -f "$config_file" ]]; then
-        local read_mode
-        read_mode=$(grep '^spec_mode:' "$config_file" | awk '{print $2}' || true)
-        [[ -n "$read_mode" ]] && parsed_mode="$read_mode"
-        
-        local read_path
-        read_path=$(grep '^spec_path:' "$config_file" | awk '{print $2}' || true)
-        [[ -n "$read_path" ]] && parsed_path="$read_path"
-    fi
-
-    local spec_root="${PROJECT_ROOT}/${parsed_path}"
-    if [[ "$parsed_mode" == "external" ]]; then
-        local env_file="${PROJECT_ROOT}/.env"
-        if [[ -f "$env_file" ]]; then
-            local read_ext
-            read_ext=$(grep '^SPEC_REPO_PATH=' "$env_file" | cut -d'=' -f2 || true)
-            [[ -n "$read_ext" ]] && spec_root="$read_ext"
-        fi
-    fi
-
-    # Clean up trailing slash
-    spec_root="${spec_root%/}"
-
     # Copy templates
     if [[ -d "${SCRIPT_DIR}/templates" ]]; then
-        mkdir -p "${spec_root}/templates"
-        cp -R "${SCRIPT_DIR}/templates/"* "${spec_root}/templates/"
-        log_ok "Deployed templates to ${spec_root}/templates/"
+        mkdir -p "${target_dir}/templates"
+        cp -R "${SCRIPT_DIR}/templates/"* "${target_dir}/templates/"
+        log_ok "Deployed templates to ${target_dir}/templates/"
     fi
 
     # Step 7: Verify

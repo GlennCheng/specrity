@@ -16,7 +16,7 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
 ## 概述
 此 workflow 協助 PM 從 Jira Ticket 建立產品需求文件（PRD）。基於原生 spec-kit 的 specify + clarify 整合設計。採用 **Draft-First** 狀態機：PRD 草稿先存在 `drafts/` 目錄，定稿後搬移到 `published/`。支援跨對話 session 無縫接續。
 
-Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarify），每輪 1~5 題關聯問題，每題附推薦答案。無硬性輪數上限，由 AI 評估覆蓋率 + PM 確認共同決定停止時機。PRD 產出後自動進行品質驗證（對照 `templates/spec-template.md`）。
+Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarify），每輪 1~5 題關聯問題，每題附推薦答案。無硬性輪數上限，由 AI 評估覆蓋率 + PM 確認共同決定停止時機。PRD 產出後自動進行品質驗證（對照 `.specrity/templates/spec-template.md`）。
 
 ## 前置條件
 - Atlassian MCP Server 已連線（若未連線，進入降級模式）
@@ -45,16 +45,16 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
 
 #### 0-B: 載入設定
 
-設定優先權：`.specrity.yml` → `.env` → 自動偵測
+設定優先權：`.specrity/.specrity.yml` → `.env` → 自動偵測
 
 1. 找到專案根目錄（往上層尋找 `.git`）
-2. 讀取 `.specrity.yml`：
+2. 讀取 `.specrity/.specrity.yml`：
    - `spec_mode`：`local`（預設）/ `submodule` / `external`
    - `spec_path`：spec 目錄的相對路徑（預設 `specs/`）
    - `jira_cloud_id`（選填）
    - `jira_project_key`（選填）
 3. 若 `spec_mode: external`，從 `.env` 讀取 `SPEC_REPO_PATH`
-4. 若 `.specrity.yml` 不存在且 `.env` 也沒設定：
+4. 若 `.specrity/.specrity.yml` 不存在且 `.env` 也沒設定：
    - 預設使用 `spec_mode: local`、`spec_path: specs/`
 5. 從 `<TICKET_ID>` 解析 project key（如 `HTGO2-123` → `HTGO2`）
 6. 若未設定 `jira_cloud_id`，透過 MCP `getAccessibleAtlassianResources` 自動取得
@@ -121,7 +121,7 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
 
 #### 2-A: 初始分析
 
-1. **必須實際讀取 Template 檔案**：使用檔案讀取工具，去讀取 `$SPEC_ROOT/templates/spec-template.md` 檔案的完整內容，理解 PRD 應有的完整結構與限制
+1. **必須實際讀取 Template 檔案**：使用檔案讀取工具，去讀取 `$PROJECT_ROOT/.specrity/.specrity/templates/spec-template.md` 檔案的完整內容，理解 PRD 應有的完整結構與限制
 2. 基於 Jira ticket 內容 + 現有 prd.md 草稿，進行**結構化覆蓋掃描**：
    - 對照 spec-template 的每個區塊，標記覆蓋狀態：`Clear` / `Partial` / `Missing`
    - 將 `Partial` 或 `Missing` 的區塊列為候選釐清問題
@@ -254,7 +254,7 @@ Checkpoint 展示格式：
 
 #### 3-A: 產出完整 PRD
 
-1. **必須實際讀取 Template 檔案**：使用檔案讀取工具，去讀取 `$SPEC_ROOT/templates/spec-template.md` 檔案的完整內容，作為產出 PRD 的結構參照
+1. **必須實際讀取 Template 檔案**：使用檔案讀取工具，去讀取 `$PROJECT_ROOT/.specrity/.specrity/templates/spec-template.md` 檔案的完整內容，作為產出 PRD 的結構參照
 2. 根據所有 Clarify 資訊 + Jira snapshot，填充 template 的每個區塊
 3. 對於仍不清楚但影響不大的地方，使用合理預設值並記錄在 **Assumptions** 區塊
 4. 對於仍不清楚且影響重大的地方，標記 `[NEEDS CLARIFICATION: 具體問題]`（最多 3 個）
@@ -363,7 +363,7 @@ Spec repo 獨立於主 repo，PM **不碰主 repo**。
 PRD 就在主 repo 裡，PM **必須建 feature branch** 才能 commit。
 
 1. **🛡️ Branch 保護檢查（雙重確認）**
-   - 讀取 `.specrity.yml` 中的 `protected_branches` 清單
+   - 讀取 `.specrity/.specrity.yml` 中的 `protected_branches` 清單
    - 預計建立的 branch 名稱：`feature/<TICKET_ID>-<slugified-title>`
    - **檢查 1**：目標 branch 不在 `protected_branches` 中
      - 若命中 → **立即中止**：
