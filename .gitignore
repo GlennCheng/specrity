@@ -14,3 +14,4 @@ Thumbs.db
 
 # Node (in case of future tooling)
 node_modules/
+.gemini/commands/

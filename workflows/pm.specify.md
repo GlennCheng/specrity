@@ -5,7 +5,9 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
 # /pm.specify <TICKET_ID>
 
 ## 概述
-此 workflow 協助 PM 從 Jira Ticket 建立產品需求文件（PRD）。採用 **Draft-First** 設計：PRD 草稿先存在 `drafts/` 目錄，定稿後才建 feature branch。支援跨對話 session 無縫接續。
+此 workflow 協助 PM 從 Jira Ticket 建立產品需求文件（PRD）。基於原生 spec-kit 的 specify + clarify 整合設計。採用 **Draft-First** 狀態機：PRD 草稿先存在 `drafts/` 目錄，定稿後搬移到 `published/`。支援跨對話 session 無縫接續。
+
+Clarify 採用**逐題互動 + 推薦答案**機制（源自原生 spec-kit clarify），最多 5 題，每次只問 1 題。PRD 產出後自動進行品質驗證（對照 `templates/spec-template.md`）。
 
 ## 前置條件
 - Atlassian MCP Server 已連線（若未連線，進入降級模式）
@@ -108,9 +110,14 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
 
 ### Step 2: Clarify 互動
 
-1. 分析需求內容，找出模糊或不完整的地方
+#### 2-A: 初始分析
 
-   ⚠️ **重要限制：你是 PM 的產品思維夥伴，不是工程師。絕對不要詢問技術實作細節。**
+1. 載入 `templates/spec-template.md`，理解 PRD 應有的完整結構
+2. 基於 Jira ticket 內容 + 現有 prd.md 草稿，進行**結構化覆蓋掃描**：
+   - 對照 spec-template 的每個區塊，標記覆蓋狀態：`Clear` / `Partial` / `Missing`
+   - 將 `Partial` 或 `Missing` 的區塊列為候選釐清問題
+
+3. ⚠️ **重要限制：你是 PM 的產品思維夥伴，不是工程師。絕對不要詢問技術實作細節。**
 
    **提問維度（依序檢視，挑出最需要釐清的）：**
 
@@ -139,30 +146,84 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
    | 要做 component 拆分嗎？ | 這個區塊未來會在其他頁面重複使用嗎？ |
    | 要支援 i18n 嗎？ | 這個功能需要支援多語系嗎？目前有哪些語言？ |
 
-2. 產出釐清問題清單（每次最多 3 個問題，以編號列出，避免造成使用者負擔）
-3. **持久化**：將每輪問答記錄到 `clarify-log.md`：
+4. 產出候選問題佇列（最多 5 題），根據 **Impact × Uncertainty** 排序
+
+#### 2-B: 逐題互動（每次只問 1 題）
+
+**整個 Clarify 流程最多問 5 題。每次只展示 1 題，答完才出下一題。**
+
+每題格式：
+
+- **多選題**（當有明確的離散選項時）：
+  1. 分析所有選項，選出 **最合適的推薦選項**
+  2. 展示推薦：`**推薦：** 選項 A — [推薦理由（1-2 句）]`
+  3. 展示選項表格：
+
+     | 選項 | 描述 | 影響 |
+     |------|------|------|
+     | A | [選項 A 描述] | [對功能的影響] |
+     | B | [選項 B 描述] | [對功能的影響] |
+     | C | [選項 C 描述] | [對功能的影響] |
+     | 自訂 | 提供你自己的答案 | — |
+
+  4. 提示：`您可以回覆選項代號（如「A」）、接受推薦（說「yes」），或提供自己的答案。`
+
+- **簡答題**（無離散選項時）：
+  1. 提供 **建議答案**：`**建議：** [你的建議] — [簡短理由]`
+  2. 提示：`可以接受建議（說「yes」），或提供你自己的答案（5 字以內）。`
+
+#### 2-C: 答案處理 + 持久化
+
+使用者回答後：
+1. 若回覆「yes」、「推薦」、「建議」→ 採用推薦/建議的答案
+2. 驗證答案對應到選項或符合簡答限制
+3. 若模糊 → 追問一次澄清（不計入 5 題額度）
+4. **立即**記錄到 `clarify-log.md`：
    ```markdown
    ## Round N — <date>
 
-   **Q1: <問題>**
-   A1: <使用者回答>
-
-   **Q2: <問題>**
-   A2:（尚未回答）
+   **Q: <問題>**
+   **推薦：** <推薦答案>
+   **A：** <使用者最終答案>
+   **影響區塊：** <更新了 spec 的哪個 section>
    ```
-4. 等待使用者回覆
-5. 根據回覆更新 PRD 草稿
+5. **立即**更新 `prd.md` 草稿中對應的區塊
 6. 更新 `state.yml` 的 `clarify_rounds` 和 `updated_at`
-7. 若仍有不清楚的地方，重複 Step 2
-8. 當使用者說「可以了」或所有問題都已回覆，詢問是否定稿
+7. 進入下一題，直到：
+   - 所有關鍵模糊點已釐清 → 提早結束
+   - 使用者說「可以了」、「done」、「夠了」→ 停止
+   - 已問滿 5 題 → 停止
 
-### Step 3: 產出 PRD
+### Step 3: 產出 PRD + 品質驗證
 
-1. 根據所有 Clarify 資訊，產出完整的 PRD markdown
-2. 儲存到 `drafts/<TICKET_ID>/prd.md`
-3. 更新 `state.yml` 的 `prd_version` + 1
-4. 展示 PRD 給使用者確認
-5. 使用者確認後，更新 `state.yml` phase 為 `finalized`
+#### 3-A: 產出完整 PRD
+
+1. 載入 `templates/spec-template.md` 作為結構參照
+2. 根據所有 Clarify 資訊 + Jira snapshot，填充 template 的每個區塊
+3. 對於仍不清楚但影響不大的地方，使用合理預設值並記錄在 **Assumptions** 區塊
+4. 對於仍不清楚且影響重大的地方，標記 `[NEEDS CLARIFICATION: 具體問題]`（最多 3 個）
+5. 儲存到 `drafts/<TICKET_ID>/prd.md`
+6. 更新 `state.yml` 的 `prd_version` + 1
+
+#### 3-B: 品質驗證（自動檢查）
+
+對照 spec-template 逐項檢查 PRD 品質：
+
+- **完整性**：所有 mandatory 區塊都填寫完成？
+- **清晰度**：沒有模糊形容詞（「快速」、「直覺」）未量化？
+- **可測性**：每個 FR 和 SC 都可以被客觀驗證？
+- **PM 語言**：沒有技術術語（框架、API、資料庫）混入？
+- **`[NEEDS CLARIFICATION]` 數量**：不超過 3 個？
+
+若檢查未通過：自動修正（最多 2 輪）。若修正後仍有問題，警告使用者。
+
+#### 3-C: 展示與確認
+
+1. 展示完整 PRD 給使用者確認
+2. 若有 `[NEEDS CLARIFICATION]` 標記，逐一展示並讓使用者選擇：
+   - 提供答案 → 更新 PRD
+   - 留給 RD 處理 → 保留標記
+3. 使用者確認後，更新 `state.yml` phase 為 `finalized`
 
 ### Step 4: 定稿與發布
 
