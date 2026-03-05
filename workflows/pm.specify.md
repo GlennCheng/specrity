@@ -121,7 +121,7 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
 
 #### 2-A: 初始分析
 
-1. 載入 `templates/spec-template.md`，理解 PRD 應有的完整結構
+1. **必須實際讀取 Template 檔案**：使用檔案讀取工具，去讀取 `$SPEC_ROOT/templates/spec-template.md` 檔案的完整內容，理解 PRD 應有的完整結構與限制
 2. 基於 Jira ticket 內容 + 現有 prd.md 草稿，進行**結構化覆蓋掃描**：
    - 對照 spec-template 的每個區塊，標記覆蓋狀態：`Clear` / `Partial` / `Missing`
    - 將 `Partial` 或 `Missing` 的區塊列為候選釐清問題
@@ -254,7 +254,7 @@ Checkpoint 展示格式：
 
 #### 3-A: 產出完整 PRD
 
-1. 載入 `templates/spec-template.md` 作為結構參照
+1. **必須實際讀取 Template 檔案**：使用檔案讀取工具，去讀取 `$SPEC_ROOT/templates/spec-template.md` 檔案的完整內容，作為產出 PRD 的結構參照
 2. 根據所有 Clarify 資訊 + Jira snapshot，填充 template 的每個區塊
 3. 對於仍不清楚但影響不大的地方，使用合理預設值並記錄在 **Assumptions** 區塊
 4. 對於仍不清楚且影響重大的地方，標記 `[NEEDS CLARIFICATION: 具體問題]`（最多 3 個）

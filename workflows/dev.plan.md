@@ -211,7 +211,7 @@ plans/<TICKET_ID>/
 
 ### Step 4: 產出 plan.md
 
-1. 載入 `templates/plan-template.md` 作為結構參照
+1. **必須實際讀取 Template 檔案**：使用檔案讀取工具，去讀取 `$SPEC_ROOT/templates/plan-template.md` 的完整內容，作為結構參照
 2. 基於 PRD、research.md、data-model.md、程式碼分析、和缺陷偵測結果，填充 template
 3. 確保 plan 中的每個實作步驟都能追溯到 PRD 的 FR
 4. 儲存 `plan.md` 到 `plans/<TICKET_ID>/plan.md`
