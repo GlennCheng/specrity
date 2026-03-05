@@ -1,21 +1,33 @@
 # Speckit-Jira Project Configuration
-# 此檔案應 commit 到主 repo，團隊成員 pull 後即可使用
-# This file should be committed to the main repo
+# This file should be committed to the main repo.
+# Team members get the config automatically after git pull.
 
-# ─── Spec 存放位置 ───
-# 可選值: "submodule" | "local" | "external"
+# ─── Spec Storage ───
+# Options: "submodule" | "local" | "external"
 #
-# submodule:  PRD 放在 git submodule 中（推薦團隊使用）
-#             → spec_path 指向 submodule 相對路徑
-# local:      PRD 放在專案內的子目錄（最簡單，預設值）
-#             → spec_path 指向相對路徑
-# external:   PRD 放在完全獨立的 repo
-#             → 需要在 .env 中設定 SPEC_REPO_PATH 絕對路徑
+# submodule:  PRD stored in a git submodule (recommended for teams)
+#             → spec_path points to submodule relative path
+# local:      PRD stored in a subdirectory (simplest, default)
+#             → spec_path points to relative path
+# external:   PRD stored in a completely separate repo
+#             → requires SPEC_REPO_PATH in .env
 spec_mode: local
 spec_path: specs/
 
-# ─── Jira 設定 ───
-# Cloud ID 和 Project Key 可由 MCP 自動偵測或從 ticket ID 解析
-# 若需要明確指定，取消註解以下設定
+# ─── Branch Protection ───
+# Branches that workflows must NEVER push to.
+# Prevents accidental pushes to CI/CD environment branches.
+protected_branches:
+  - main
+  - master
+  - develop
+  - integration
+  - staging
+  - production
+  - release/*
+
+# ─── Jira Settings ───
+# Cloud ID and Project Key can be auto-detected via MCP or parsed from ticket ID.
+# Uncomment to explicitly set:
 # jira_cloud_id: your-cloud-id
 # jira_project_key: PROJ

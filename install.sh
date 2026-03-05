@@ -279,6 +279,12 @@ ENVEOF
     read -rp "Set Jira Cloud ID? (leave empty to auto-detect via MCP): " jira_cloud_id
     read -rp "Set default Project Key? (leave empty to parse from ticket ID): " jira_project_key
 
+    # Ask about protected branches
+    echo ""
+    echo -e "  ${BOLD}Branch Protection${NC}"
+    echo -e "  Default protected branches: ${CYAN}main, master, develop, integration, staging, production, release/*${NC}"
+    read -rp "Add extra protected branches? (comma-separated, or Enter to keep defaults): " extra_branches
+
     # Generate .speckit-jira.yml
     cat > "$config_file" <<CFGEOF
 # Speckit-Jira Project Configuration
@@ -287,7 +293,27 @@ ENVEOF
 
 spec_mode: ${spec_mode}
 spec_path: ${spec_path}
+
+# Branches that workflows must NEVER push to.
+# Prevents accidental pushes to CI/CD environment branches.
+protected_branches:
+  - main
+  - master
+  - develop
+  - integration
+  - staging
+  - production
+  - release/*
 CFGEOF
+
+    # Add extra protected branches
+    if [[ -n "$extra_branches" ]]; then
+        IFS=',' read -ra EXTRA <<< "$extra_branches"
+        for branch in "${EXTRA[@]}"; do
+            branch=$(echo "$branch" | xargs)  # trim whitespace
+            echo "  - ${branch}" >> "$config_file"
+        done
+    fi
 
     # Add optional Jira settings
     if [[ -n "$jira_cloud_id" || -n "$jira_project_key" ]]; then

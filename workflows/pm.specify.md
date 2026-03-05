@@ -134,18 +134,53 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
 4. 展示 PRD 給使用者確認
 5. 使用者確認後，更新 `state.yml` phase 為 `finalized`
 
-### Step 4: 建立 Branch 並發布
+### Step 4: 定稿與發布
 
-1. 在 `$SPEC_REPO_PATH` 執行建立 feature branch：
-   - Branch 名稱：`<TICKET_ID>-<slugified-title>`（如 `PROJ-123-login-feature`）
-   - 或使用 `scripts/create-jira-feature.sh <TICKET_ID> "<title>"`
-2. 將 `drafts/<TICKET_ID>/prd.md` 複製到正式目錄結構
-3. Commit 並 Push
-4. 更新 `state.yml` phase 為 `published`，記錄 `branch_name`
-5. 更新 Jira：
+PM 確認 PRD 後，執行以下操作。
+
+#### 4-A: Spec Repo — 搬移到 published（在 main 上）
+
+1. 在 `$SPEC_ROOT`（submodule 或 local）中：
+   ```
+   mv drafts/<TICKET_ID>/ → published/<TICKET_ID>/
+   ```
+2. 更新 `published/<TICKET_ID>/state.yml`：`phase: published`
+3. `git add . && git commit -m "feat: publish PRD for <TICKET_ID>"`
+4. `git push origin main`（spec repo 的 main 可以直接 push）
+
+> ⚠️ Spec repo 永遠在 main branch 上操作，不切 branch。
+> 所有 PRD 都用目錄區分（`drafts/`、`published/`），不用 branch 區分。
+
+#### 4-B: 主 Repo — 建立 Feature Branch（含 Branch 保護）
+
+1. **🛡️ Branch 保護檢查（雙重確認）**
+   - 讀取 `.speckit-jira.yml` 中的 `protected_branches` 清單
+   - 預計建立的 branch 名稱：`feature/<TICKET_ID>-<slugified-title>`
+   - 確認目標 branch **不在**保護清單中
+   - 若命中保護清單 → **立即中止，顯示警告：**
+     ```
+     ❌ 嚴禁推送到受保護的 branch！
+     以下 branch 受保護：main, master, develop, integration, staging, production, release/*
+     請確認 branch 名稱正確。
+     ```
+   - 確認 branch 名稱**包含** `<TICKET_ID>` → 若不包含 → 中止
+   - 顯示確認訊息：
+     ```
+     即將在主 repo 建立並推送到 branch: feature/HTGO2-123-login-feature
+     確認？(y/N)
+     ```
+   - 使用者確認後才繼續
+
+2. **建立 Branch 並推送**
+   - `git checkout -b feature/<TICKET_ID>-<slugified-title>`
+   - 更新 submodule pointer：`git add specs && git commit`
+   - `git push -u origin feature/<TICKET_ID>-<slugified-title>`
+
+3. **更新 Jira**
    - 加上 comment：PRD 連結 + Branch 名稱
-   - Transition 狀態（若可用）
-6. 告知使用者結果
+   - Transition 狀態為 "Spec Review"（若可用）
+
+4. 告知使用者結果
 
 ---
 
