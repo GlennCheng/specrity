@@ -42,7 +42,7 @@
 ## Research Summary
 
 <!--
-  由 /dev.plan Phase 0 產出。
+  由 /specrity.dev.plan Phase 0 產出。
   記錄技術選型的決策和理由。
   完整內容在 research.md。
 -->
@@ -55,7 +55,7 @@
 ## Data Model
 
 <!--
-  由 /dev.plan Phase 1 產出。
+  由 /specrity.dev.plan Phase 1 產出。
   定義此 feature 涉及的資料實體。
   完整內容在 data-model.md。
 -->
@@ -79,12 +79,12 @@
 
 ```text
 specs/<TICKET_ID>/
-├── prd.md               # PRD (from /pm.specify)
-├── plan.md              # This file (from /dev.plan)
+├── prd.md               # PRD (from /specrity.pm.specify)
+├── plan.md              # This file (from /specrity.dev.plan)
 ├── research.md          # Phase 0 output
 ├── data-model.md        # Phase 1 output
 ├── contracts/           # Phase 1 output (optional)
-├── tasks.md             # From /dev.tasks
+├── tasks.md             # From /specrity.dev.tasks
 └── analyze-log.md       # Analyze loop records
 ```
 

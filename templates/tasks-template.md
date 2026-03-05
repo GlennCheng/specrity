@@ -134,4 +134,4 @@
 - Each user story should be independently completable and testable
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
-- **Jira**: Sub-task IDs are auto-populated by `/dev.tasks`
+- **Jira**: Sub-task IDs are auto-populated by `/specrity.dev.tasks`

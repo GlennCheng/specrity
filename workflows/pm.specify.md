@@ -2,7 +2,7 @@
 description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First 狀態機、跨 Session 持久化"
 ---
 
-# /pm.specify <TICKET_ID>
+# /specrity.pm.specify <TICKET_ID>
 
 ## 設計理念
 
@@ -10,7 +10,7 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
 > 核心目的是讓 PM 專注於**任務的需求與目的**，避免干涉 RD 的邏輯架構與技術選用。
 >
 > **PM 的職責：** 釐清「使用者要什麼」、「為什麼要做」、「怎樣算成功」。
-> **技術決策交給 RD：** 資料庫設計、框架選用、API 架構、前後端分工等，全部留給 `/dev.plan` 階段由工程師處理。
+> **技術決策交給 RD：** 資料庫設計、框架選用、API 架構、前後端分工等，全部留給 `/specrity.dev.plan` 階段由工程師處理。
 > **RD 有需要時主動回來問 PM**，而非由 PM 介入技術細節。
 
 ## 概述
@@ -28,33 +28,33 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
 ### Step 0: 載入專案設定
 
 #### 0-A: 版本檢查
-1. 讀取專案根目錄的 `.speckit-jira-installed`
+1. 讀取專案根目錄的 `.specrity-installed`
 2. 若檔案不存在 → 顯示：
    ```
-   ⚠️ 未偵測到 speckit-jira 安裝紀錄。
-   請先執行安裝：~/speckit-jira/install.sh <your-tool>
+   ⚠️ 未偵測到 specrity 安裝紀錄。
+   請先執行安裝：~/specrity/install.sh <your-tool>
    ```
 3. 若檔案存在，檢查 `installed_at` 時間戳記：
    - 若距今超過 30 天 → 顯示：
      ```
-     💡 你的 speckit-jira workflow 已安裝 N 天（v0.x.x）。
-     建議更新：cd ~/speckit-jira && git pull && ./install.sh <your-tool>
+     💡 你的 specrity workflow 已安裝 N 天（v0.x.x）。
+     建議更新：cd ~/specrity && git pull && ./install.sh <your-tool>
      ```
    - 若在 30 天內 → 靜默通過，不顯示任何訊息
 4. 不管版本新舊，都繼續執行後續步驟（只是提醒，不阻擋）
 
 #### 0-B: 載入設定
 
-設定優先權：`.speckit-jira.yml` → `.env` → 自動偵測
+設定優先權：`.specrity.yml` → `.env` → 自動偵測
 
 1. 找到專案根目錄（往上層尋找 `.git`）
-2. 讀取 `.speckit-jira.yml`：
+2. 讀取 `.specrity.yml`：
    - `spec_mode`：`local`（預設）/ `submodule` / `external`
    - `spec_path`：spec 目錄的相對路徑（預設 `specs/`）
    - `jira_cloud_id`（選填）
    - `jira_project_key`（選填）
 3. 若 `spec_mode: external`，從 `.env` 讀取 `SPEC_REPO_PATH`
-4. 若 `.speckit-jira.yml` 不存在且 `.env` 也沒設定：
+4. 若 `.specrity.yml` 不存在且 `.env` 也沒設定：
    - 預設使用 `spec_mode: local`、`spec_path: specs/`
 5. 從 `<TICKET_ID>` 解析 project key（如 `HTGO2-123` → `HTGO2`）
 6. 若未設定 `jira_cloud_id`，透過 MCP `getAccessibleAtlassianResources` 自動取得
@@ -133,7 +133,7 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
      - **自動產生一題 Clarify 問題**，詢問 PM 這是：
        - A: 這是必須執行的確認需求（Must-have） → 轉化為 FR，並釐清其背後目的
        - B: 僅是初步的解法建議 → 留在「原始解法建議」供參考，PRD 應聚焦於要解決的核心問題
-       - C: 需要 RD 做 RCA 後再決定最佳解法 → 標記 `[NEEDS RCA]`，留給 `/dev.plan` 處理
+       - C: 需要 RD 做 RCA 後再決定最佳解法 → 標記 `[NEEDS RCA]`，留給 `/specrity.dev.plan` 處理
 
 4. ⚠️ **重要限制：你是 PM 的產品思維夥伴，不是工程師。絕對不要詢問技術實作細節。**
 
@@ -353,17 +353,17 @@ Spec repo 獨立於主 repo，PM **不碰主 repo**。
 3. **提示 Engineer**：
    ```
    ✅ PRD 已發布到 spec repo。
-   工程師可執行 /dev.plan HTGO2-123 開始規劃。
+   工程師可執行 /specrity.dev.plan HTGO2-123 開始規劃。
    ```
 
-4. **完成**。不建立主 repo branch，由 Engineer 在 `/dev.plan` 時自行建立。
+4. **完成**。不建立主 repo branch，由 Engineer 在 `/specrity.dev.plan` 時自行建立。
 
 ##### 若 `spec_mode: local`
 
 PRD 就在主 repo 裡，PM **必須建 feature branch** 才能 commit。
 
 1. **🛡️ Branch 保護檢查（雙重確認）**
-   - 讀取 `.speckit-jira.yml` 中的 `protected_branches` 清單
+   - 讀取 `.specrity.yml` 中的 `protected_branches` 清單
    - 預計建立的 branch 名稱：`feature/<TICKET_ID>-<slugified-title>`
    - **檢查 1**：目標 branch 不在 `protected_branches` 中
      - 若命中 → **立即中止**：

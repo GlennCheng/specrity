@@ -168,7 +168,7 @@
 
 ---
 
-## Clarifications *(auto-populated by /pm.specify)*
+## Clarifications *(auto-populated by /specrity.pm.specify)*
 
 <!--
   This section is automatically populated during the Clarify loop.
@@ -224,4 +224,4 @@ When creating this spec from a user prompt:
    - **不得**直接將建議寫成 FR
    - 將建議寫入「原始解法建議」區塊
    - 透過 Clarify 問 PM：這是必須執行的確認需求 / 僅是建議參考 / 需要 RD 評估 (RCA)
-   - 若需 RCA，標記 `[NEEDS RCA]`，留給 `/dev.plan` 處理
+   - 若需 RCA，標記 `[NEEDS RCA]`，留給 `/specrity.dev.plan` 處理
