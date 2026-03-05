@@ -87,8 +87,12 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
    branch_name: null
    ```
 5. 初始化空的 `clarify-log.md` 和 `prd.md`
-6. 更新 Jira 狀態為 "Specifying"（若 transition 可用）
-7. 在 Jira 加上 comment：「PRD 起草已開始」
+6. **強制執行 MCP Jira 更新**（在開始發問之前）：
+   ```
+   使用 MCP tool: addCommentToJiraIssue
+   參數: cloudId = $JIRA_CLOUD_ID, issueIdOrKey = <TICKET_ID>, commentBody = "✍️ PRD 起草與釐清階段已開始"
+   ```
+7. （可選）更新 Jira 狀態為 "Specifying"（使用 MCP `transitionJiraIssue`）
 8. 進入 Step 2: Clarify
 
 #### 情況 B：存在 + phase: drafting → RESUME 模式
