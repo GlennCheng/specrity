@@ -109,7 +109,14 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
 ### Step 2: Clarify 互動
 
 1. 分析需求內容，找出模糊或不完整的地方
-2. 產出釐清問題清單（以編號列出）
+   - ⚠️ **重要限制：不要詢問技術實作細節**
+     你是協助 PM 釐清「產品需求」與「商業邏輯」的角色。請絕對避免詢問 RD 相關的技術細節（如：資料庫 Schema、GraphQL 還是 REST API、延遲載入的寫法、前/後端架構等）。
+   - **問題應專注於**：
+     - 使用者行為（User flow）
+     - 畫面行為與邊界條件（Edge cases）
+     - 效能與體驗「期望值」（例如：「需要即時反應嗎？」而非「要用 WebSockets 嗎？」）
+     - 驗收條件與成功指標
+2. 產出釐清問題清單（每次最多 3 個問題，以編號列出，避免造成使用者負擔）
 3. **持久化**：將每輪問答記錄到 `clarify-log.md`：
    ```markdown
    ## Round N — <date>
