@@ -224,7 +224,9 @@ setup_project_config() {
             read -rp "Submodule relative path (default: specs/): " sub_path
             spec_path="${sub_path:-specs/}"
             # Check if submodule exists
-            if [[ ! -d "${PROJECT_ROOT}/${spec_path}/.git" ]] && ! git -C "$PROJECT_ROOT" submodule status 2>/dev/null | grep -q "$spec_path"; then
+            # Note: .git in submodule can be a FILE (not dir), containing "gitdir: ..."
+            local spec_path_clean="${spec_path%/}"  # strip trailing slash
+            if [[ ! -e "${PROJECT_ROOT}/${spec_path_clean}/.git" ]] && ! git -C "$PROJECT_ROOT" submodule status 2>/dev/null | grep -q "${spec_path_clean}"; then
                 echo ""
                 log_error "Submodule not found at '${spec_path}'."
                 echo ""
