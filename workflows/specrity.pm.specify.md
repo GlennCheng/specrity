@@ -27,7 +27,22 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
 
 ### Step 0: 載入專案設定
 
-#### 0-A: 版本檢查
+#### 0-A: 開場與上下文檢查 (Initialization & Context Check)
+1. **印出歡迎橫幅**：一旦收到此指令，**第一句話**必須使用 Markdown 的 `text` 區塊，印出以下 ASCII Banner：
+   ```text
+      ____                  _ __       
+     / __/___  ___ ________(_) /___ __ 
+    _\ \/ _ \/ -_) __/ __/ / __/ // /  
+   /___/ .__/\__/\__/_/ /_/\__/\_, /   
+      /_/                     /___/    
+   ```
+2. **上下文檢測 (Context Sanity Check)**：
+   - AI 掃描目前對話視窗 (Session) 的對話記錄。
+   - 若發現記憶體中混雜了「其他 Ticket 或不相干任務」的上下文，必須暫停並警告：
+     `⚠️ [Specrity 警告] 偵測到當前會話中包含其他任務的上下文，可能會導致生成的內容錯亂。建議另開全新的 Chat。但若確認是相關任務，可回覆繼續。`
+   - 等待使用者確認。若上下文乾淨，則印出 `✅ Context check passed.` 並繼續。
+
+#### 0-B: 版本檢查
 1. 讀取專案根目錄的 `.specrity-installed`
 2. 若檔案不存在 → 顯示：
    ```
@@ -43,7 +58,7 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
    - 若在 30 天內 → 靜默通過，不顯示任何訊息
 4. 不管版本新舊，都繼續執行後續步驟（只是提醒，不阻擋）
 
-#### 0-B: 載入設定
+#### 0-C: 載入設定
 
 設定優先權：`.specrity/.specrity.yml` → `.env` → 自動偵測
 
@@ -74,9 +89,14 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
    使用 MCP tool: getJiraIssue
    參數: cloudId = $JIRA_CLOUD_ID, issueIdOrKey = <TICKET_ID>
    ```
-2. 建立 `drafts/<TICKET_ID>/` 目錄
-3. 將 Jira 內容儲存為 `jira-snapshot.md`
-4. 初始化 `state.yml`：
+2. **深度上下文檢測 (Deep Context Sanity Check)**：
+   - AI 必須對比「剛剛擷取到的 Jira Ticket 內容」與「先前的對話歷史記錄」。
+   - 若發現歷史對話中的任務需求、功能描述或技術討論，**與本張 Ticket 完全無關甚至衝突**（AI 判斷將導致嚴重的幻覺或資訊混亂），必須中斷流程並拒絕推進：
+     `❌ [Specrity 錯誤] 深度分析發現歷史對話（如前一項任務討論）與本次 Ticket 存在明顯衝突。強烈建議您開啟一個「全新乾淨的 Chat」後重新執行指令，以避免 PRD 內容失真。`
+   - 除非使用者強行命令略過，否則停留在此階段。
+3. 建立 `drafts/<TICKET_ID>/` 目錄
+4. 將 Jira 內容儲存為 `jira-snapshot.md`
+5. 初始化 `state.yml`：
    ```yaml
    ticket: <TICKET_ID>
    phase: drafting
@@ -86,14 +106,14 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
    prd_version: 0
    branch_name: null
    ```
-5. 初始化空的 `clarify-log.md` 和 `prd.md`
-6. **強制執行 MCP Jira 更新**（在開始發問之前）：
+6. 初始化空的 `clarify-log.md` 和 `prd.md`
+7. **強制執行 MCP Jira 更新**（在開始發問之前）：
    ```
    使用 MCP tool: addCommentToJiraIssue
-   參數: cloudId = $JIRA_CLOUD_ID, issueIdOrKey = <TICKET_ID>, commentBody = "✍️ PRD 起草與釐清階段已開始"
+   參數: cloudId = $JIRA_CLOUD_ID, issueIdOrKey = <TICKET_ID>, commentBody = "🤖 [Specrity] ✍️ PRD 起草與釐清階段已開始"
    ```
-7. （可選）更新 Jira 狀態為 "Specifying"（使用 MCP `transitionJiraIssue`）
-8. 進入 Step 2: Clarify
+8. （可選）更新 Jira 狀態為 "Specifying"（使用 MCP `transitionJiraIssue`）
+9. 進入 Step 2: Clarify
 
 #### 情況 B：存在 + phase: drafting → RESUME 模式
 1. 讀取 `state.yml` 取得目前進度
