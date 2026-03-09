@@ -67,6 +67,7 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
    - AI 必須確實解析此檔案，禁止憑空猜測。
    - 提取 `spec_mode`：`local`（預設）/ `submodule` / `external`
    - 提取 `spec_path`：spec 目錄的相對路徑（預設 `specrity/`）
+   - 提取 `jira_transitions`：狀態轉移對應表（若存在）
    - 提取 `jira_cloud_id`（選填）
    - 提取 `jira_project_key`（選填）
 3. 若 `spec_mode: external`，從 `.env` 讀取 `SPEC_REPO_PATH`
@@ -120,7 +121,8 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
    使用 MCP tool: addCommentToJiraIssue
    參數: cloudId = $JIRA_CLOUD_ID, issueIdOrKey = <TICKET_ID>, commentBody = "🤖 [Specrity] ✍️ PRD 起草與釐清階段已開始"
    ```
-8. （可選）更新 Jira 狀態為 "Specifying"（使用 MCP `transitionJiraIssue`）
+8. **狀態轉移 (Jira Status Transition)**：
+   > **[CRITICAL INSTRUCTION TO AI]**: 根據 `Step 0-C` 讀取到的 `jira_transitions` 中的 `specify_start` 設定（格式如 `"To Do -> Specifying"`）。若本 Ticket **當前狀態**與設定的**來源狀態**一致，請使用 MCP `getTransitionsForJiraIssue` 查詢對應 `id`，再呼叫 `transitionJiraIssue` 將其拖拉至目標狀態。若當前狀態不吻合則略過。
 9. 進入 Step 2: Clarify
 
 #### 情況 B：存在 + phase: drafting → RESUME 模式
@@ -434,7 +436,7 @@ Spec repo 獨立於主 repo，PM **不碰主 repo**。
 
 2. **更新 Jira**：
    - Comment：「PRD 已發布，請 Review」
-   - Transition：狀態 → "Spec Review"（若可用）
+   - Transition 檢查：根據 `jira_transitions` 中 `specify_done` 的設定（如 `"Specifying -> Spec Review"`），若當前狀態與來源吻合則拖拉至目標狀態。
 
 3. **提示 Engineer**：
    ```
@@ -479,7 +481,7 @@ PRD 就在主 repo 裡，PM **必須建 feature branch** 才能 commit。
 
 3. **更新 Jira**：
    - Comment：PRD 發布 + Branch 名稱
-   - Transition：狀態 → "Spec Review"（若可用）
+   - Transition 檢查：同上，根據 `specify_done` 判斷是否拖拉狀態。
 
 4. **完成**。
 

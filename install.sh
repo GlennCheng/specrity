@@ -315,6 +315,20 @@ protected_branches:
   - staging
   - production
   - release/*
+
+# ─── Jira Workflow Transitions (Optional) ───
+# Define state transitions for Jira tickets during workflow execution.
+# Format is always "Source Status -> Target Status". 
+# AI will only transition the ticket if its current status matches the Source Status.
+# Uncomment and modify to match your project's Jira boards.
+# jira_transitions:
+#   specify_start:   "To Do -> Specifying"
+#   specify_done:    "Specifying -> Spec Review"
+#   plan_start:      "Spec Review -> Planning"
+#   plan_done:       "Planning -> Ready for Dev"
+#   tasks_done:      "To Do -> Task Review"
+#   implement_start: "To Do -> In Progress"
+#   implement_done:  "In Progress -> Code Review"
 CFGEOF
 
     # Add extra protected branches
