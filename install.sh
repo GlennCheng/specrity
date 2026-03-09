@@ -606,6 +606,19 @@ STAMPEOF
         echo ".specrity-installed" >> "$gitignore"
     fi
 
+    # Deploy User Settings Template if not exists
+    local user_settings="${PROJECT_ROOT}/.specrity-user.yml"
+    if [[ ! -f "$user_settings" ]] && [[ -f "${SCRIPT_DIR}/templates/.specrity-user.yml" ]]; then
+        cp "${SCRIPT_DIR}/templates/.specrity-user.yml" "$user_settings"
+        log_ok "Created personal settings file: .specrity-user.yml"
+    fi
+
+    # Add user settings to .gitignore
+    if [[ -f "$gitignore" ]] && ! grep -q "^\.specrity-user\.yml$" "$gitignore" 2>/dev/null; then
+        echo ".specrity-user.yml" >> "$gitignore"
+        log_ok "Added .specrity-user.yml to .gitignore"
+    fi
+
     # Step 6: Copy helper scripts and templates
     log_header "Step 4: Deploy Helper Scripts & Templates"
     

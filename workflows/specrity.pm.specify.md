@@ -73,11 +73,18 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
 4. 若 `spec_mode: submodule`，**強制檢查 `.gitmodules`** 確認實際的 submodule 路徑是否與 `spec_path` 一致。
 5. 若 `.specrity/.specrity.yml` 不存在且 `.env` 也沒設定：
    - 預設使用 `spec_mode: local`、`spec_path: specrity/`
-5. 從 `<TICKET_ID>` 解析 project key（如 `HTGO2-123` → `HTGO2`）
-6. 若未設定 `jira_cloud_id`，透過 MCP `getAccessibleAtlassianResources` 自動取得
-7. 決定 spec 根目錄 `$SPEC_ROOT`：
+6. 從 `<TICKET_ID>` 解析 project key（如 `HTGO2-123` → `HTGO2`）
+7. 若未設定 `jira_cloud_id`，透過 MCP `getAccessibleAtlassianResources` 自動取得
+8. 決定 spec 根目錄 `$SPEC_ROOT`：
    - `local` / `submodule` → `$PROJECT_ROOT/$spec_path`
    - `external` → `$SPEC_REPO_PATH`
+
+#### 0-D: 載入個人設定檔 (User Preferences)
+
+嘗試在專案根目錄讀取 `.specrity-user.yml`：
+- 若存在，提取 `language` 設定，決定 AI 回覆與輸出文件的主要語言。
+- 提取 `pm_card_features` 下的布林值（`show_recommendation`, `show_stakeholder_impact`, `show_effort_estimate`, `show_jira_quote`），這將控制後面「Clarify 卡片」的詳細程度。
+- 若檔案不存在，套用預設值（全部為 `true`，語言預設 `zh-TW`）。
 
 ### Step 1: 狀態偵測（State Detection）
 
@@ -206,7 +213,8 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
 1. **分組與排版要求**：
    > **[CRITICAL INSTRUCTION TO AI]**: 你接下來的輸出內容 **MUST STRICTLY FOLLOW (必須嚴格遵守)** 以下「Modern Dashboard (現代卡片)」的 Markdown 排版格式與結構，不要隨意改變。必須使用引言區塊（`> `）、Emoji 與分隔線，讓畫面乾淨俐落。標題必須加上目前的 Round 數。
 
-   2. **多選題格式範例**（必須明確標示推薦選項，並提供 PM 決策所需的影響與成本分析）：
+   2. **究極版多選題格式範例**：
+      > **[CRITICAL INSTRUCTION TO AI]**: 根據 `0-D` 讀取到的 `pm_card_features` 開關，決定是否輸出對應的區塊。如果全部為 `true`，請嚴格套用以下 Markdown 排版：
       ```markdown
       > 🎯 **Specrity Clarifier** | <TICKET_ID>
       > 
@@ -214,30 +222,41 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
       > 
       > 💡 **<維度名稱>釐清 (Round <N> - 問題 <X>/<Y>)：<問題簡述>**
       > 
-      > <問題的上下文背景或是 Jira 的原始描述段落>
+      > <details>
+      > <summary>📜 <b>檢視 Jira 相關原文</b></summary>
+      > 
+      > > *<如果 show_jira_quote=true，請在此引用觸發該問題的 Jira 原文>*
+      > </details>
       > 
       > **可選方案：**
-      > - 1️⃣ **<選項一簡稱>** <若為推薦，標示「🏆 (推薦)」>
+      > 
+      > - 1️⃣ **<選項一簡稱>**
       >   - 📝 **說明：** <詳細描述具體行為>
-      >   - 💡 **影響/優缺點：** <對使用者體驗、SEO 或其他產品層面的影響>
-      >   - ⚙️ **實作成本：** <標示困難度，如：低/中/高，並附一兩句技術理由>
+      >   - ⚙️ **實作成本：** <如果 show_effort_estimate=true，標示 T-shirt 尺寸 [Size S/M/L] 及粗估天數，並附技術理由>
       >
       > - 2️⃣ **<選項二簡稱>**
       >   - 📝 **說明：** <詳細描述具體行為>
-      >   - 💡 **影響/優缺點：** <對使用者體驗、SEO 或其他產品層面的影響>
-      >   - ⚙️ **實作成本：** <標示困難度，如：低/中/高，並附一兩句技術理由>
+      >   - ⚙️ **實作成本：** <同上>
       >
       > - 3️⃣ **<選項三簡稱>**
       >   - 📝 **說明：** <詳細描述具體行為>
-      >   - 💡 **影響/優缺點：** <對使用者體驗、SEO 或其他產品層面的影響>
-      >   - ⚙️ **實作成本：** <標示困難度，如：低/中/高，並附一兩句技術理由>
+      >   - ⚙️ **實作成本：** <同上>
       > 
       > ---
       > 
-      > 💬 *請回覆選項數字，直接接受建議（回覆 `推薦`），或是輸入您的其他設計考量。*
+      > 🏆 **AI 綜合分析與推薦：** <如果 show_recommendation=true，請給出獨立的推薦選項與理由>
+      > 
+      > ⚖️ **利害關係人影響 (Stakeholders Impact)：** <如果 show_stakeholder_impact=true，請列出>
+      > - 🧑‍💻 **RD 開發端**：<對開發成本、維護性的影響>
+      > - 👤 **終端使用者**：<對 UX 的好壞>
+      > - 🧑‍💼 **業務/客戶端**：<對商業目標或 KPI 的影響>
+      > 
+      > ---
+      > 
+      > 💬 *請回覆選項數字，或是輸入您的其他設計考量。*
       ```
 
-   3. **簡答題格式範例**（無離散選項時，提供單一強烈建議及其影響）：
+   3. **簡答題格式範例**（無離散選項時）：
       ```markdown
       > 🎯 **Specrity Clarifier** | <TICKET_ID>
       > 
@@ -245,12 +264,18 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarif
       > 
       > 💡 **<維度名稱>釐清 (Round <N> - 問題 <X>/<Y>)：<問題簡述>**
       > 
-      > <問題的上下文背景>
+      > <details>
+      > <summary>📜 <b>檢視 Jira 相關原文</b></summary>
+      > 
+      > > *<同上，若開啟引述功能>*
+      > </details>
       > 
       > **強烈建議做法 🏆：**
       > - 📝 **說明：** <AI 根據經驗或工程最佳實踐給出的具體建議>
-      > - 💡 **影響/優缺點：** <對產品的正面效益與潛在缺點>
-      > - ⚙️ **實作成本：** <預估的工作複雜度>
+      > - ⚙️ **實作成本：** <同上，若開啟工時評估功能>
+      > 
+      > ⚖️ **利害關係人影響 (Stakeholders Impact)：**
+      > <同上，若開啟利害關係人功能>
       > 
       > ---
       > 

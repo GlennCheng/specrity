@@ -1,0 +1,13 @@
+# Specrity User Configuration (Local Only)
+# This file is for your personal preferences and should NOT be committed.
+# It is auto-ignored by Git.
+
+# Language preference for AI outputs
+language: zh-TW
+
+# PM Clarify Card Feature Toggles
+pm_card_features:
+  show_recommendation: true # Show specific AI recommendations (🏆)
+  show_stakeholder_impact: true # Show impact analysis for stakeholders (⚖️)
+  show_effort_estimate: true # Show T-shirt size effort estimates (⚙️)
+  show_jira_quote: true # Show quoted original Jira descriptions (📜)
