@@ -14,9 +14,9 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
 > **RD 有需要時主動回來問 PM**，而非由 PM 介入技術細節。
 
 ## 概述
-此 workflow 協助 PM 從 Jira Ticket 建立產品需求文件（PRD）。基於原生 spec-kit 的 specify + clarify 整合設計。採用 **Draft-First** 狀態機：PRD 草稿先存在 `drafts/` 目錄，定稿後搬移到 `published/`。支援跨對話 session 無縫接續。
+此 workflow 協助 PM 從 Jira Ticket 建立產品需求文件（PRD）。基於原生 Specrity 的 specify + clarify 整合設計。採用 **Draft-First** 狀態機：PRD 草稿先存在 `drafts/` 目錄，定稿後搬移到 `published/`。支援跨對話 session 無縫接續。
 
-Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 spec-kit clarify），每輪 1~5 題關聯問題，每題附推薦答案。無硬性輪數上限，由 AI 評估覆蓋率 + PM 確認共同決定停止時機。PRD 產出後自動進行品質驗證（對照 `.specrity/templates/spec-template.md`）。
+Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 Specrity clarify），每輪 1~5 題關聯問題，每題附推薦答案。無硬性輪數上限，由 AI 評估覆蓋率 + PM 確認共同決定停止時機。PRD 產出後自動進行品質驗證（對照 `.specrity/templates/spec-template.md`）。
 
 ## 前置條件
 - Atlassian MCP Server 已連線（若未連線，進入降級模式）

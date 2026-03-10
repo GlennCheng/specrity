@@ -1,10 +1,10 @@
 # Specrity
 
-> Spec-Kit Jira Integration — 透過 AI Agent 自動化 Jira 工作流的 Workflow 套件。
+> Specrity Jira Integration — 透過 AI Agent 自動化 Jira 工作流的 Workflow 套件。
 
 ## 概述
 
-Specrity 為 PM 和工程師提供 4 個核心 AI Agent 指令，串接 Jira 與 Spec-Kit 的 PRD 管理流程：
+Specrity 為 PM 和工程師提供 4 個核心 AI Agent 指令，串接 Jira 與 Specrity 的 PRD 管理流程：
 
 | 指令 | 角色 | 說明 |
 |------|------|------|

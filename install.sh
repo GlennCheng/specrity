@@ -3,7 +3,7 @@
 # install.sh — Specrity Installer
 #
 # Deploy specrity workflow prompts to various AI tool directories.
-# Based on spec-kit's agent registry pattern, supports 17+ LLM tools.
+# Based on Specrity's agent registry pattern, supports 17+ LLM tools.
 #
 # Usage:
 #   ./install.sh                    # Interactive mode
