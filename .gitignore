@@ -7,7 +7,6 @@ Thumbs.db
 *~
 
 # Editor
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -15,3 +14,6 @@ Thumbs.db
 # Node (in case of future tooling)
 node_modules/
 .gemini/commands/
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
