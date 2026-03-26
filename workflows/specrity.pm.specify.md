@@ -14,7 +14,7 @@ description: "PM 從 Jira Ticket 起草 PRD — 含 Clarify 互動、Draft-First
 > **RD 有需要時主動回來問 PM**，而非由 PM 介入技術細節。
 
 ## 概述
-此 workflow 協助 PM 從 Jira Ticket 建立產品需求文件（PRD）。基於原生 Specrity 的 specify + clarify 整合設計。採用 **Draft-First** 狀態機：PRD 草稿先存在 `drafts/` 目錄，定稿後搬移到 `published/`。支援跨對話 session 無縫接續。
+此 workflow 協助 PM 從 Jira Ticket 建立產品需求文件（PRD）。基於原生 Specrity 的 specify + clarify 整合設計。採用 **Draft-First** 狀態機：PRD 草稿存在本地 `drafts/` 目錄進行 Clarify 互動，定稿後**自動發布到 Confluence**（PM 不需要碰 Git）。支援跨對話 session 無縫接續。
 
 Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 Specrity clarify），每輪 1~5 題關聯問題，每題附推薦答案。無硬性輪數上限，由 AI 評估覆蓋率 + PM 確認共同決定停止時機。PRD 產出後自動進行品質驗證（對照 `.specrity/templates/spec-template.md`）。
 
@@ -70,13 +70,22 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 Specrity clarif
    - 提取 `jira_transitions`：狀態轉移對應表（若存在）
    - 提取 `jira_cloud_id`（選填）
    - 提取 `jira_project_key`（選填）
-3. 若 `spec_mode: external`，從 `.env` 讀取 `SPEC_REPO_PATH`
-4. 若 `spec_mode: submodule`，**強制檢查 `.gitmodules`** 確認實際的 submodule 路徑是否與 `spec_path` 一致。
-5. 若 `.specrity/.specrity.yml` 不存在且 `.env` 也沒設定：
+   - **提取 `confluence_space_id`（必填）**
+   - **提取 `confluence_parent_page_id`（選填）**
+3. **Confluence 設定驗證**：
+   - 若 `confluence_space_id` 為空或未設定 → **中止流程**並顯示：
+     ```
+     ❌ confluence_space_id 未設定！
+     PRD 發布需要 Confluence Space ID。
+     請在 .specrity/.specrity.yml 中設定 confluence_space_id 後重新執行。
+     ```
+4. 若 `spec_mode: external`，從 `.env` 讀取 `SPEC_REPO_PATH`
+5. 若 `spec_mode: submodule`，**強制檢查 `.gitmodules`** 確認實際的 submodule 路徑是否與 `spec_path` 一致。
+6. 若 `.specrity/.specrity.yml` 不存在且 `.env` 也沒設定：
    - 預設使用 `spec_mode: local`、`spec_path: specrity/`
-6. 從 `<TICKET_ID>` 解析 project key（如 `HTGO2-123` → `HTGO2`）
-7. 若未設定 `jira_cloud_id`，透過 MCP `getAccessibleAtlassianResources` 自動取得
-8. 決定 spec 根目錄 `$SPEC_ROOT`：
+7. 從 `<TICKET_ID>` 解析 project key（如 `HTGO2-123` → `HTGO2`）
+8. 若未設定 `jira_cloud_id`，透過 MCP `getAccessibleAtlassianResources` 自動取得
+9. 決定 spec 根目錄 `$SPEC_ROOT`：
    - `local` / `submodule` → `$PROJECT_ROOT/$spec_path`
    - `external` → `$SPEC_REPO_PATH`
 
@@ -144,14 +153,54 @@ Clarify 採用**分輪互動 + Checkpoint**機制（源自原生 Specrity clarif
 
 #### 情況 C：存在 + phase: finalized → FINALIZE 模式
 1. 讀取 `prd.md` 最終版
-2. 詢問使用者：「PRD 已定稿但尚未發布，要 (1) 建立 Branch 並發布 (2) 繼續修改？」
-3. 根據選擇進入 Step 3 或 Step 2
+2. 詢問使用者：「PRD 已定稿但尚未發布到 Confluence，要 (1) 發布到 Confluence (2) 繼續修改？」
+3. 若選擇發布 → 進入 Step 4
+4. 若選擇修改 → 進入 Step 2
 
-#### 情況 D：Feature branch 已存在 → PUBLISHED / REVISE 模式
-1. 讀取現有 PRD
-2. 詢問使用者：「PRD 已發布到 branch `<branch_name>`，要進入修改模式嗎？」
-3. 若要修改，讀取最新 Jira comment（可能有 Dev 回饋）
-4. 進入 Step 2: Clarify（修改模式）
+#### 情況 D：存在 + phase: published → PUBLISHED / REVISE 模式
+1. 讀取本地 `prd.md` 和 `state.yml`
+2. **🔍 Confluence 衝突偵測**：
+   - 從 `state.yml` 取得 `confluence_page_id` 和 `confluence_last_version`
+   - 使用 MCP `getConfluencePage`（`pageId = $confluence_page_id`）取得 Confluence 頁面 metadata
+   - 若 MCP 回傳錯誤（頁面不存在）：
+     ```
+     ⚠️ Confluence 頁面已不存在（可能被刪除）。
+     • 頁面 ID：{confluence_page_id}
+     • 原始 URL：{confluence_url}
+
+     選擇：
+     1️⃣ 重新建立頁面 — 使用本地 prd.md 建立新頁面
+     2️⃣ 中止 — 不做任何操作
+     ```
+     若選擇重新建立 → 清除 `state.yml` 中的 `confluence_page_id`，進入 Step 4
+   - 比對 Confluence `version.number` 與 `state.yml` 的 `confluence_last_version`：
+     - 若版本相同 → 無衝突，繼續
+     - 若版本不同 → **展示衝突資訊**：
+       ```
+       ⚠️ Confluence 衝突偵測
+
+       📄 Confluence 頁面已被他人修改：
+       • 修改者：{lastModifiedBy.displayName}
+       • 修改時間：{lastModifiedDate}
+       • 版本變化：v{old} → v{new}（共 {diff} 次修改）
+
+       📋 變更內容摘要：
+       （AI 比對 Confluence 最新內容 vs 本地 prd.md，用 diff 高亮標示差異段落）
+
+       👉 請選擇：
+       1️⃣ 以 Confluence 版本為準 — 下載線上版覆蓋本地草稿，然後繼續修改
+       2️⃣ 以本地版本為準 — 忽略線上修改，發布時覆蓋 Confluence
+       3️⃣ 手動合併 — AI 協助將兩版內容合併，產出合併版供確認
+       4️⃣ 中止 — 不做任何操作
+       ```
+       - 選項 1️⃣：使用 MCP `getConfluencePage`（`contentFormat = "markdown"`）下載內容覆蓋本地 `prd.md`，更新 `state.yml` 版本記錄
+       - 選項 2️⃣：跳過下載，繼續正常流程（發布時會記錄「覆蓋了線上修改」的 Jira comment）
+       - 選項 3️⃣：AI 產出合併版，展示 diff 給 PM 確認後覆蓋 `prd.md`
+       - 選項 4️⃣：結束流程
+3. 提供 Confluence 頁面連結並詢問：「PRD 已發布到 Confluence，要進入修改模式嗎？」
+   - Confluence URL：`{confluence_url}`
+4. 若要修改，讀取最新 Jira comment（可能有 Dev 回饋）
+5. 進入 Step 2: Clarify（修改模式）
 
 ### Step 2: Clarify 互動
 
@@ -407,91 +456,154 @@ Checkpoint 展示格式：
    - 留給 RD 處理 → 保留標記
 3. 使用者確認後，更新 `state.yml` phase 為 `finalized`
 
-### Step 4: 定稿與發布
+### Step 4: 定稿與發布到 Confluence
 
-PM 確認 PRD 後，根據 `spec_mode` 執行不同流程。
+PM 確認 PRD 後，統一發布到 Confluence。**不再需要 Git 操作或建立 Branch。**
 
-#### 4-A: 搬移到 published
+#### 4-A: 發布前衝突偵測
 
-不論 `spec_mode`，都執行搬移：
+> **[CRITICAL INSTRUCTION TO AI]**: 此步驟僅在 `state.yml` 已有 `confluence_page_id` 時執行（即更新已發布的 PRD）。若為首次發布，跳到 4-B。
 
-```
-mv $SPEC_ROOT/drafts/<TICKET_ID>/ → $SPEC_ROOT/published/<TICKET_ID>/
-```
-
-更新 `published/<TICKET_ID>/state.yml`：`phase: published`
-
-#### 4-B: 發布（依 spec_mode 分流）
-
-##### 若 `spec_mode: submodule`
-
-Spec repo 獨立於主 repo，PM **不碰主 repo**。
-
-1. **在 spec repo 內**（`$SPEC_ROOT` 即 submodule 目錄）：
-   - `git add .`
-   - `git commit -m "feat: publish PRD for <TICKET_ID>"`
-   - `git push origin main`
-   
-   > ⚠️ Spec repo 永遠在 main 上操作，不切 branch。
-
-2. **更新 Jira**：
-   - Comment：「PRD 已發布，請 Review」
-   - Transition 檢查：根據 `jira_transitions` 中 `specify_done` 的設定（如 `"Specifying -> Spec Review"`），若當前狀態與來源吻合則拖拉至目標狀態。
-
-3. **提示 Engineer**：
-   ```
-   ✅ PRD 已發布到 spec repo。
-   工程師可執行 /specrity.dev.plan HTGO2-123 開始規劃。
-   ```
-
-4. **完成**。不建立主 repo branch，由 Engineer 在 `/specrity.dev.plan` 時自行建立。
-
-##### 若 `spec_mode: local`
-
-PRD 就在主 repo 裡，PM **必須建 feature branch** 才能 commit。
-
-1. **🛡️ Branch 保護檢查（雙重確認）**
-   - 讀取 `.specrity/.specrity.yml` 中的 `protected_branches` 清單
-   - 預計建立的 branch 名稱：`feature/<TICKET_ID>-<slugified-title>`
-   - **檢查 1**：目標 branch 不在 `protected_branches` 中
-     - 若命中 → **立即中止**：
-       ```
-       ❌ Cannot push to protected branch!
-       Protected branches: main, master, develop, integration, staging, production, release/*
-       Aborting.
-       ```
-   - **檢查 2**：branch 名稱包含 `<TICKET_ID>`
-     - 若不包含 → **中止**：
-       ```
-       ❌ Branch name must contain the ticket ID: <TICKET_ID>
-       Aborting.
-       ```
-   - **檢查 3**：顯示確認訊息
+1. **Confluence Review Comment 檢查**：
+   - 使用 MCP `getConfluencePageInlineComments`（`pageId = $confluence_page_id`, `resolutionStatus = "open"`）
+   - 若有未解決的 comment：
      ```
-     Will create and push branch: feature/HTGO2-123-login-feature
-     Confirm? (y/N)
+     ⚠️ PRD 的 Confluence 頁面上有 N 個未解決的 Review Comment：
+     1. @{author}: "{摘要}"
+     2. @{author}: "{摘要}"
+
+     建議先處理這些 Comment 再重新發布。
+     (1) 我已經處理了，繼續發布
+     (2) 中止
      ```
-   - 使用者確認後才繼續
+   - 若無 → 通過，繼續後續步驟
+2. 使用 MCP `getConfluencePage`（`pageId = $confluence_page_id`）取得最新 metadata
+3. 若 MCP 回傳錯誤（頁面不存在）：
+   ```
+   ⚠️ Confluence 頁面已不存在（可能被刪除）。
+   • 頁面 ID：{confluence_page_id}
+   選擇：
+   1️⃣ 重新建立頁面 — 使用本地 prd.md 建立新頁面
+   2️⃣ 中止
+   ```
+   若選擇重新建立 → 清除 `state.yml` 中的 `confluence_page_id`，繼續 4-B
+4. 比對 Confluence `version.number` 與 `state.yml` 的 `confluence_last_version`
+5. 若版本不同 → 展示衝突資訊（格式同 Step 1 情況 D 的衝突偵測）
+   - 選項 1️⃣ 以 Confluence 為準：下載後合併到 prd.md，**重新進入 Step 3-C 展示給 PM 確認**
+   - 選項 2️⃣ 以本地為準：繼續 4-B（發布時會覆蓋 Confluence）
+   - 選項 3️⃣ 手動合併：AI 產出合併版，確認後繼續 4-B
+   - 選項 4️⃣ 中止
+6. 若版本相同 → 無衝突，繼續 4-B
 
-2. **建立 Branch 並推送**
-   - `git checkout -b feature/<TICKET_ID>-<slugified-title>`
-   - `git add specrity/`
-   - `git commit -m "feat: publish PRD for <TICKET_ID>"`
-   - `git push -u origin feature/<TICKET_ID>-<slugified-title>`
+#### 4-B: 發布到 Confluence
 
-3. **更新 Jira**：
-   - Comment：PRD 發布 + Branch 名稱
-   - Transition 檢查：同上，根據 `specify_done` 判斷是否拖拉狀態。
+1. 讀取 `drafts/<TICKET_ID>/prd.md` 的完整內容
+2. 檢查是否已有 Confluence page（從 `state.yml` 的 `confluence_page_id` 判斷）：
+   - **若無（首次發布）** → 使用 MCP `createConfluencePage`：
+     ```
+     使用 MCP tool: createConfluencePage
+     參數:
+       cloudId = $JIRA_CLOUD_ID
+       spaceId = $CONFLUENCE_SPACE_ID
+       parentId = $CONFLUENCE_PARENT_PAGE_ID（若有設定）
+       title = "[<TICKET_ID>] <Ticket Title> — PRD"
+       body = prd.md 內容
+       contentFormat = "markdown"
+     ```
+   - **若有（更新發布）** → 使用 MCP `updateConfluencePage`：
+     ```
+     使用 MCP tool: updateConfluencePage
+     參數:
+       cloudId = $JIRA_CLOUD_ID
+       pageId = $confluence_page_id
+       title = "[<TICKET_ID>] <Ticket Title> — PRD"
+       body = prd.md 內容
+       contentFormat = "markdown"
+       versionMessage = "Updated via Specrity"
+     ```
+3. **Confluence MCP 連線失敗的降級處理**：
+   - 若 MCP 無法連接 Confluence：
+     ```
+     ⚠️ 無法連接 Confluence。PRD 已定稿並存在本地。
+     選擇：
+     1️⃣ 稍後重試 — 結束流程，下次執行指令時會再嘗試發布
+     2️⃣ 匯出 PRD — 將 prd.md 內容展示在畫面上，您可手動貼到 Confluence
+     ```
+   - 若選擇稍後重試 → 保持 `phase: finalized`，結束流程
+   - 若選擇匯出 → 展示 PRD 全文，結束流程
+4. 將 Confluence 回傳的 page ID、URL、版本號記錄到 `state.yml`：
+   ```yaml
+   confluence_page_id: <page_id>
+   confluence_url: <page_url>
+   confluence_last_published_at: <timestamp>
+   confluence_last_version: <version.number>
+   ```
+5. 更新 `state.yml`：`phase: published`
 
-4. **完成**。
+#### 4-C: 更新 Jira Ticket（綁定 Confluence 連結）
 
-##### 若 `spec_mode: external`
+> **[CRITICAL INSTRUCTION TO AI]**: 此步驟至關重要。Confluence 連結必須寫入 Jira Ticket，讓 RD 端能直接從 Ticket 找到 PRD，無需依賴本地檔案。
 
-與 submodule 類似，PRD 在外部 repo。
+1. **將 Confluence URL 寫入 Jira Ticket 欄位**：
+   > 嘗試使用 MCP `editJiraIssue` 將 Confluence URL 寫入 Jira ticket 的描述或自訂欄位：
+   ```
+   使用 MCP tool: editJiraIssue
+   參數:
+     cloudId = $JIRA_CLOUD_ID
+     issueIdOrKey = <TICKET_ID>
+     fields = {
+       // 嘗試以下方式之一（依 Jira 專案設定而定）：
+       // 方式 A：若有自訂欄位（如 "PRD Link" 或 "Confluence Link"），使用該欄位
+       // 方式 B：若無自訂欄位，在 description 最前面加註 Confluence 連結
+     }
+   ```
+   - 若更新失敗（無權限或欄位不存在），不阻擋流程，僅記錄警告然後繼續
 
-1. 在外部 repo 中 commit + push
-2. 更新 Jira
-3. 完成。不建立主 repo branch。
+2. **在 Jira 加上 comment**：
+   > **[CRITICAL INSTRUCTION TO AI]**: 透過 MCP 執行 `addCommentToJiraIssue` 時，`commentBody` 參數 **MUST STRICTLY FOLLOW (必須嚴格遵守)** 以下排版，將 `{confluence_url}` 替換為實際 URL：
+   ```markdown
+   > 🤖 **[Specrity] ✅ PRD 已發布到 Confluence**
+   >
+   > ---
+   >
+   > 📄 **Confluence 連結：** {confluence_url}
+   > 🕐 **發布時間：** {timestamp}
+   >
+   > 工程師可執行 `/specrity.dev.plan <TICKET_ID>` 開始規劃。
+   ```
+
+3. **智慧 Reviewer 通知（Tech Lead @mention）**：
+   > 根據 `.specrity.yml` 的 `reviewer_account_id` 和 `review_label` 設定。
+
+   - **情況 A：Ticket 有 `review_label`（如 `needs-tech-review`）**
+     - 若有設定 `reviewer_account_id` → **自動**在 Jira 加一則 comment @mention reviewer：
+       ```
+       > 🔔 @{reviewer} 此 PRD 已標記需要技術主管 Review。
+       > 📄 Confluence: {confluence_url}
+       ```
+   - **情況 B：Ticket 沒有 `review_label`**
+     - AI **主動評估**此 PRD 是否建議 Tech Lead Review：
+       - 評估標準：涉及架構變更、跨系統整合、安全性、效能關鍵路徑、資料庫 schema 變更、新技術引入等
+       - 若 AI 判斷建議 Review → 提示 PM：
+         ```
+         💡 AI 評估此 PRD 涉及較複雜的技術範圍（{原因摘要}），
+         建議通知技術主管確認。
+         (1) 是，幫我在 Jira @mention 主管
+         (2) 不需要，跳過
+         ```
+       - 若 PM 選擇通知 → 加上 @mention comment（同情況 A）
+       - 若 AI 判斷不需要 → 跳過，不提示
+   - 若未設定 `reviewer_account_id` → 跳過整個步驟
+
+4. **狀態轉移 (Jira Status Transition)**：
+   > **[CRITICAL INSTRUCTION TO AI]**: 根據 `Step 0-C` 讀取到的 `jira_transitions` 中的 `specify_done` 設定（格式如 `"Specifying -> Spec Review"`）。若本 Ticket **當前狀態**與設定的**來源狀態**一致，請使用 MCP `getTransitionsForJiraIssue` 查詢對應 `id`，再呼叫 `transitionJiraIssue` 將其拖拉至目標狀態。若當前狀態不吻合則略過。
+5. **完成提示**：
+   ```
+   ✅ PRD 已發布到 Confluence。
+   📄 Confluence: {confluence_url}
+   🔗 Jira Ticket 已更新（Confluence 連結已綁定）
+   工程師可執行 /specrity.dev.plan <TICKET_ID> 開始規劃。
+   ```
 
 ---
 
@@ -513,16 +625,15 @@ Please provide the following manually:
 
 後續步驟照常進行，只是跳過 Jira 狀態更新和 comment 操作。
 
+Confluence 發布不受 Jira 降級影響（兩者獨立連線）。
+
 ---
 
 ## 預期產出
 
-### 所有模式
-- `published/<TICKET_ID>/state.yml` — 狀態追蹤
-- `published/<TICKET_ID>/jira-snapshot.md` — Jira 需求快照
-- `published/<TICKET_ID>/clarify-log.md` — Clarify 問答記錄
-- `published/<TICKET_ID>/prd.md` — PRD 完整文件
-- Jira 更新（comment + 狀態 transition）
-
-### 僅 local 模式
-- 主 repo feature branch（`feature/<TICKET_ID>-<title>`）
+- `drafts/<TICKET_ID>/state.yml` — 狀態追蹤（含 Confluence page ID、版本號）
+- `drafts/<TICKET_ID>/jira-snapshot.md` — Jira 需求快照
+- `drafts/<TICKET_ID>/clarify-log.md` — Clarify 問答記錄
+- `drafts/<TICKET_ID>/prd.md` — PRD 完整文件
+- **Confluence 頁面** — PRD 正式發布版（`[TICKET_ID] Title — PRD`）
+- Jira 更新（comment + 狀態 transition + Confluence 連結）

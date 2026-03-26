@@ -2,14 +2,24 @@
 # This file should be committed to the main repo.
 # Team members get the config automatically after git pull.
 
-# ─── Spec Storage ───
+# ─── Confluence Settings (PRD Publishing) ───
+# PRD will be published to Confluence instead of Git.
+# PM never needs to touch Git — only the final "publish" step pushes to Confluence.
+confluence_space_id: ""              # Confluence Space ID (required for PRD publishing)
+confluence_parent_page_id: ""        # Parent page to nest PRDs under (recommended)
+
+# ─── Spec Storage (RD-side only) ───
+# This setting only affects RD-side workflows (dev.plan / dev.tasks / dev.implement).
+# It determines where local plans, tasks, and implementation files are stored.
+# PM's pm.specify workflow always publishes PRD to Confluence regardless of this setting.
+#
 # Options: "submodule" | "local" | "external"
 #
-# submodule:  PRD stored in a git submodule (recommended for teams)
+# submodule:  Plans/tasks stored in a git submodule (recommended for teams)
 #             → spec_path points to submodule relative path
-# local:      PRD stored in a subdirectory (simplest, default)
+# local:      Plans/tasks stored in a subdirectory (simplest, default)
 #             → spec_path points to relative path
-# external:   PRD stored in a completely separate repo
+# external:   Plans/tasks stored in a completely separate repo
 #             → requires SPEC_REPO_PATH in .env
 spec_mode: local
 spec_path: specs/
@@ -45,3 +55,13 @@ jira_transitions:
 # Uncomment to explicitly set:
 # jira_cloud_id: your-cloud-id
 # jira_project_key: PROJ
+
+# ─── Reviewer Notification (Optional) ───
+# Jira account ID of the Tech Lead / Reviewer.
+# Used to @mention in Jira comments when review is needed.
+# reviewer_account_id: 5a1234567890abcdef123456
+#
+# Jira label that triggers mandatory @mention on publish.
+# If a ticket has this label, the reviewer will be @mentioned in the publish comment.
+# Even without this label, AI will assess document complexity and suggest review if needed.
+# review_label: needs-tech-review
